@@ -390,6 +390,7 @@
     const players = parseInt(urlParams.get('players')) || 6;
     const impostors = parseInt(urlParams.get('impostors')) || 1;
     let playerColors = [];
+    let hasSubmitted = false;
     
     initAudio();
     playPageTransitionSound();
@@ -475,7 +476,25 @@
 
     const startGameBtn = document.getElementById("startGameBtn");
     if (startGameBtn) {
-      startGameBtn.addEventListener('click', async () => {
+      const setSubmittingUi = (isSubmitting) => {
+        if (isSubmitting) {
+          startGameBtn.classList.add('disabled');
+          startGameBtn.setAttribute('aria-disabled', 'true');
+          startGameBtn.style.pointerEvents = 'none';
+          startGameBtn.style.opacity = '0.6';
+        } else {
+          startGameBtn.classList.remove('disabled');
+          startGameBtn.removeAttribute('aria-disabled');
+          startGameBtn.style.pointerEvents = '';
+          startGameBtn.style.opacity = '';
+        }
+      };
+
+      const submitSetup = async () => {
+        if (hasSubmitted) return;
+        hasSubmitted = true;
+        setSubmittingUi(true);
+
         playStartGameSound();
         
         // Chiudi tutti i picker aperti
@@ -521,23 +540,26 @@
           if (!response.ok) {
             console.error('Errore:', data.error);
             alert('Errore: ' + data.error);
+            hasSubmitted = false;
+            setSubmittingUi(false);
             return;
           }
           
-          // Vai alla pagina del gioco dopo il suono
-          setTimeout(() => {
-            window.location.href = '/game';
-          }, 400);
+          // Vai alla pagina del gioco (niente ritardi: deterministico)
+          window.location.href = '/game';
         } catch (error) {
           console.error('Errore nella chiamata API:', error);
           alert('Errore nella configurazione dei giocatori');
+          hasSubmitted = false;
+          setSubmittingUi(false);
         }
-      });
-      
-      // Supporto touch
-      startGameBtn.addEventListener('touchend', (e) => {
+      };
+
+      // Un solo trigger: il click è già supportato su mobile (evita doppie POST)
+      startGameBtn.addEventListener('click', (e) => {
         e.preventDefault();
-        startGameBtn.click();
+        e.stopPropagation();
+        submitSetup();
       });
     }
 
@@ -718,20 +740,15 @@
 
     // Carica i colori all'avvio e setup event listeners
     // Usa DOMContentLoaded per assicurarsi che tutto sia pronto (importante per PWA)
-    const initPage = () => {
-      loadColors().then(() => {
-        // Doppio timeout per assicurarsi che il DOM sia completamente renderizzato
-        setTimeout(() => {
-          setupColorPickers();
-        }, 100);
-      });
+    const initPage = async () => {
+      await loadColors();
+      setupColorPickers();
     };
     
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', initPage);
     } else {
-      // DOM già caricato, ma aspetta un frame per sicurezza
-      setTimeout(initPage, 0);
+      initPage();
     }
   </script>
 </body>

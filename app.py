@@ -2,6 +2,16 @@ from flask import Flask, render_template, jsonify, request, session, redirect
 import random
 import uuid
 
+@app.before_request
+def log_every_request():
+    print(
+        "REQ:",
+        request.method,
+        request.path,
+        "SESSION:",
+        dict(session)
+    )
+
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-change-this-in-production'
 

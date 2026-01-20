@@ -2,6 +2,9 @@ from flask import Flask, render_template, jsonify, request, session, redirect
 import random
 import uuid
 
+app = Flask(__name__)
+app.secret_key = 'your-secret-key-change-this-in-production'
+
 @app.before_request
 def log_every_request():
     print(
@@ -12,8 +15,6 @@ def log_every_request():
         dict(session)
     )
 
-app = Flask(__name__)
-app.secret_key = 'your-secret-key-change-this-in-production'
 
 WORDS = [
     "Davide Doati", "Zangi", "Figa della Salama", "Trans", "Tette",

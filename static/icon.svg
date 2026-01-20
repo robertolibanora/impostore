@@ -1,0 +1,45 @@
+<svg width="512" height="512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#000000;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0a0000;stop-opacity:1" />
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="512" height="512" fill="url(#bgGradient)"/>
+  
+  <!-- Text: IMPOSTORE -->
+  <text x="256" y="220" 
+        font-family="Inter, sans-serif" 
+        font-size="72" 
+        font-weight="600" 
+        letter-spacing="0.15em"
+        fill="#ffffff" 
+        text-anchor="middle"
+        filter="url(#glow)">
+    IMPOSTORE
+  </text>
+  
+  <!-- Text: DEI MODERATI -->
+  <text x="256" y="300" 
+        font-family="Inter, sans-serif" 
+        font-size="48" 
+        font-weight="500" 
+        letter-spacing="0.12em"
+        fill="#888888" 
+        text-anchor="middle"
+        opacity="0.8">
+    DEI MODERATI
+  </text>
+  
+  <!-- Accent glow -->
+  <circle cx="256" cy="256" r="200" fill="none" stroke="rgba(255, 0, 64, 0.1)" stroke-width="2" opacity="0.5"/>
+</svg>

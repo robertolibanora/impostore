@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#000000" />
+  <meta name="description" content="Gioco dell'impostore per i Moderati" />
+  <title>Impostore dei Moderati - Nomi Giocatori</title>
+  
+  <!-- PWA -->
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='icon.svg') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon-192.png') }}">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Impostore">
+  
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
+  <script src="{{ url_for('static', filename='js/common.js') }}"></script>
+  
+  <script>
+    // Registra il service worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then((registration) => {
+            console.log('Service Worker registrato:', registration);
+          })
+          .catch((error) => {
+            console.log('Service Worker registrazione fallita:', error);
+          });
+      });
+    }
+  </script>
+  
+  <style>
+    #playersList {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-height: calc(100vh - 280px);
+      overflow-y: auto;
+      padding: 0 16px;
+      width: 100%;
+      max-width: 100%;
+      margin-bottom: 24px;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    @media (min-width: 480px) {
+      #playersList {
+        gap: 16px;
+        padding: 0 24px;
+        max-width: 400px;
+        margin-bottom: 40px;
+        max-height: 60vh;
+      }
+    }
+
+    .playerInput {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      transition: all 0.25s ease;
+      position: relative;
+    }
+
+    @media (min-width: 480px) {
+      .playerInput {
+        gap: 16px;
+        padding: 16px;
+      }
+    }
+
+    .playerInput:focus-within {
+      border-color: rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .playerColor {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.25);
+      flex-shrink: 0;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), inset 0 2px 4px rgba(255, 255, 255, 0.1);
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    @media (min-width: 480px) {
+      .playerColor {
+        width: 48px;
+        height: 48px;
+        border-width: 3px;
+      }
+    }
+
+    .playerColor::before {
+      content: '';
+      position: absolute;
+      inset: -2px;
+      border-radius: 50%;
+      padding: 2px;
+      background: linear-gradient(45deg, rgba(255, 255, 255, 0.3), transparent);
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .playerColor:hover {
+      transform: scale(1.15);
+      border-color: rgba(255, 255, 255, 0.5);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6), 0 0 30px rgba(255, 255, 255, 0.1);
+    }
+
+    .playerColor:hover::before {
+      opacity: 1;
+    }
+
+    .playerColor:active {
+      transform: scale(1.05);
+    }
+
+    .colorPickerOverlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(4px);
+      z-index: 999;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+      display: none;
+      touch-action: none;
+    }
+
+    .colorPickerOverlay.show {
+      display: block;
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .colorPicker {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.9);
+      background: linear-gradient(135deg, rgba(26, 26, 26, 0.98) 0%, rgba(20, 20, 20, 0.98) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 16px;
+      padding: 16px;
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+      z-index: 1000;
+      width: calc(100vw - 32px);
+      max-width: 360px;
+      max-height: calc(100vh - 120px);
+      box-shadow: 0 12px 48px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(20px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-y;
+    }
+
+    .colorPicker.show {
+      display: flex;
+      opacity: 1;
+      pointer-events: all;
+      transform: translate(-50%, -50%) scale(1);
+    }
+
+    .colorPickerTitle {
+      font-size: 9px;
+      letter-spacing: 0.35em;
+      color: rgba(255, 255, 255, 0.6);
+      font-weight: 600;
+      text-align: center;
+      margin-bottom: 4px;
+      flex-shrink: 0;
+    }
+
+    @media (min-width: 480px) {
+      .colorPickerTitle {
+        font-size: 10px;
+        letter-spacing: 0.4em;
+      }
+    }
+
+    .colorPickerGrid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    @media (min-width: 480px) {
+      .colorPicker {
+        padding: 20px;
+        gap: 16px;
+        width: auto;
+        min-width: 320px;
+      }
+
+      .colorPickerGrid {
+        grid-template-columns: repeat(5, 1fr);
+        gap: 14px;
+      }
+    }
+
+    .colorOption {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      position: relative;
+      overflow: hidden;
+      margin: 0 auto;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    @media (min-width: 480px) {
+      .colorOption {
+        width: 48px;
+        height: 48px;
+        border-width: 3px;
+      }
+    }
+
+    .colorOption::after {
+      content: '';
+      position: absolute;
+      inset: -2px;
+      border-radius: 50%;
+      background: radial-gradient(circle at center, rgba(255, 255, 255, 0.3) 0%, transparent 70%);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .colorOption:hover {
+      transform: scale(1.2) translateY(-2px);
+      border-color: rgba(255, 255, 255, 0.6);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 20px rgba(255, 255, 255, 0.3);
+      z-index: 10;
+    }
+
+    .colorOption:hover::after {
+      opacity: 1;
+    }
+
+    .colorOption:active {
+      transform: scale(1.1) translateY(0);
+    }
+
+    .colorOption.selected {
+      border-color: #ffffff;
+      border-width: 3px;
+      box-shadow: 0 0 30px rgba(255, 255, 255, 0.6), 0 8px 24px rgba(0, 0, 0, 0.5);
+      transform: scale(1.1);
+      animation: selectedPulse 2s ease-in-out infinite;
+    }
+
+    @media (min-width: 480px) {
+      .colorOption.selected {
+        border-width: 4px;
+        transform: scale(1.15);
+      }
+    }
+
+    .colorOption.selected::before {
+      content: '✓';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #ffffff;
+      font-size: 20px;
+      font-weight: bold;
+      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+      z-index: 1;
+    }
+
+    @keyframes selectedPulse {
+      0%, 100% {
+        box-shadow: 0 0 30px rgba(255, 255, 255, 0.6), 0 8px 24px rgba(0, 0, 0, 0.5);
+      }
+      50% {
+        box-shadow: 0 0 40px rgba(255, 255, 255, 0.8), 0 8px 24px rgba(0, 0, 0, 0.5);
+      }
+    }
+
+    .playerInputField {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: #ffffff;
+      font-size: 13px;
+      letter-spacing: 0.25em;
+      font-weight: 500;
+      font-family: 'Inter', sans-serif;
+      text-transform: uppercase;
+      outline: none;
+      padding: 8px 0;
+      min-width: 0;
+    }
+
+    @media (min-width: 480px) {
+      .playerInputField {
+        font-size: 14px;
+        letter-spacing: 0.3em;
+      }
+    }
+
+    .playerInputField::placeholder {
+      color: #666666;
+      opacity: 0.6;
+    }
+
+    #playersList::-webkit-scrollbar {
+      width: 3px;
+    }
+
+    #playersList::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 2px;
+    }
+
+    #playersList::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 2px;
+    }
+
+    #playersList::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    .colorPicker::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .colorPicker::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 2px;
+    }
+
+    .colorPicker::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 2px;
+    }
+
+    .colorPicker::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+  </style>
+</head>
+<body>
+  <div class="screen">
+    <h1>NOMI GIOCATORI</h1>
+    
+    <div id="playersList">
+      <!-- I giocatori verranno aggiunti qui dinamicamente -->
+    </div>
+    
+    <div class="start" id="startGameBtn">INIZIA PARTITA</div>
+  </div>
+  
+  <div id="colorPickerOverlay" class="colorPickerOverlay"></div>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const players = parseInt(urlParams.get('players')) || 6;
+    const impostors = parseInt(urlParams.get('impostors')) || 1;
+    let playerColors = [];
+    
+    initAudio();
+    playPageTransitionSound();
+
+    async function loadColors() {
+      try {
+        const response = await fetch('/api/players/colors');
+        const data = await response.json();
+        playerColors = data.colors;
+      } catch (error) {
+        console.error('Errore nel caricamento colori:', error);
+        // Fallback a colori predefiniti
+        playerColors = [
+          {name: "Rosso", color: "#ff0040"},
+          {name: "Giallo", color: "#ffd700"},
+          {name: "Blu", color: "#0080ff"},
+          {name: "Verde", color: "#00ff80"},
+          {name: "Arancione", color: "#ff8000"},
+          {name: "Viola", color: "#8000ff"},
+          {name: "Rosa", color: "#ff80ff"},
+          {name: "Azzurro", color: "#80ffff"},
+          {name: "Marrone", color: "#804000"},
+          {name: "Nero", color: "#404040"},
+          {name: "Bianco", color: "#ffffff"},
+          {name: "Grigio", color: "#808080"},
+          {name: "Turchese", color: "#00ffc0"},
+          {name: "Lime", color: "#c0ff00"},
+          {name: "Magenta", color: "#ff00c0"},
+          {name: "Ciano", color: "#00c0ff"},
+          {name: "Indaco", color: "#4000ff"},
+          {name: "Oro", color: "#ffc000"},
+          {name: "Argento", color: "#c0c0c0"},
+          {name: "Bronzo", color: "#cd7f32"},
+        ];
+      }
+      
+      const playersList = document.getElementById("playersList");
+      if (!playersList) {
+        console.error('playersList non trovato');
+        return;
+      }
+      
+      playersList.innerHTML = '';
+      
+      // Crea un input per ogni giocatore
+      for (let i = 0; i < players; i++) {
+        const colorData = playerColors[i] || {name: `Giocatore ${i + 1}`, color: '#ffffff'};
+        const playerDiv = document.createElement('div');
+        playerDiv.className = 'playerInput';
+        playerDiv.innerHTML = `
+          <div style="position: relative;">
+            <div class="playerColor" 
+                 style="background-color: ${colorData.color};" 
+                 data-index="${i}"
+                 data-color="${colorData.color}"></div>
+            <div class="colorPicker" id="colorPicker${i}" style="display: none;">
+              <div class="colorPickerTitle">SELEZIONA COLORE</div>
+              <div class="colorPickerGrid">
+                ${playerColors.map((c, idx) => `
+                  <div class="colorOption ${idx === i ? 'selected' : ''}" 
+                       style="background-color: ${c.color};"
+                       data-color="${c.color}"
+                       data-color-name="${c.name}"
+                       data-player-index="${i}"
+                       title="${c.name}"></div>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+          <input type="text" class="playerInputField" 
+                 placeholder="${colorData.name}" 
+                 value="${colorData.name}"
+                 data-index="${i}"
+                 data-color="${colorData.color}"
+                 maxlength="20">
+        `;
+        playersList.appendChild(playerDiv);
+      }
+
+      // Ritorna una promise risolta per permettere il chaining
+      return Promise.resolve();
+    }
+
+    const startGameBtn = document.getElementById("startGameBtn");
+    if (startGameBtn) {
+      startGameBtn.addEventListener('click', async () => {
+        playStartGameSound();
+        
+        // Chiudi tutti i picker aperti
+        document.querySelectorAll('.colorPicker').forEach(picker => {
+          picker.classList.remove('show');
+          picker.style.display = 'none';
+        });
+        const overlay = document.getElementById('colorPickerOverlay');
+        if (overlay) {
+          overlay.classList.remove('show');
+          overlay.style.display = 'none';
+        }
+        
+        // Raccogli i nomi dei giocatori
+        const playerNames = [];
+        const inputs = document.querySelectorAll('.playerInputField');
+        
+        inputs.forEach((input) => {
+          const name = input.value.trim() || input.placeholder;
+          const color = input.dataset.color || '#ffffff';
+          playerNames.push({
+            name: name,
+            color: color
+          });
+        });
+        
+        // Invia i nomi al backend
+        try {
+          const response = await fetch('/api/players/setup', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              players: players,
+              impostors: impostors,
+              player_names: playerNames
+            })
+          });
+          
+          const data = await response.json();
+          
+          if (!response.ok) {
+            console.error('Errore:', data.error);
+            alert('Errore: ' + data.error);
+            return;
+          }
+          
+          // Vai alla pagina del gioco dopo il suono
+          setTimeout(() => {
+            window.location.href = '/game';
+          }, 400);
+        } catch (error) {
+          console.error('Errore nella chiamata API:', error);
+          alert('Errore nella configurazione dei giocatori');
+        }
+      });
+      
+      // Supporto touch
+      startGameBtn.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        startGameBtn.click();
+      });
+    }
+
+    function setupColorPickers() {
+      const overlay = document.getElementById('colorPickerOverlay');
+      
+      function closeAllPickers() {
+        document.querySelectorAll('.colorPicker').forEach(picker => {
+          picker.classList.remove('show');
+          picker.style.display = 'none';
+        });
+        if (overlay) {
+          overlay.classList.remove('show');
+          overlay.style.display = 'none';
+        }
+      }
+
+      // Chiudi tutti i color picker quando si clicca sull'overlay (supporto touch)
+      if (overlay) {
+        const closeOverlay = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          closeAllPickers();
+        };
+        overlay.addEventListener('click', closeOverlay);
+        overlay.addEventListener('touchend', closeOverlay);
+      }
+
+      // Chiudi tutti i color picker quando si clicca fuori (supporto touch)
+      const closeOnOutsideClick = (e) => {
+        if (!e.target.closest('.playerColor') && !e.target.closest('.colorPicker') && !e.target.closest('.colorPickerOverlay')) {
+          closeAllPickers();
+        }
+      };
+      document.addEventListener('click', closeOnOutsideClick);
+      document.addEventListener('touchend', closeOnOutsideClick);
+
+      // Apri/chiudi color picker quando si clicca/tocca sul cerchio del colore
+      const attachColorCircleListeners = () => {
+        document.querySelectorAll('.playerColor').forEach(colorCircle => {
+          // Rimuovi eventuali listener precedenti
+          const newCircle = colorCircle.cloneNode(true);
+          colorCircle.parentNode.replaceChild(newCircle, colorCircle);
+          
+          const openPicker = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const index = newCircle.dataset.index;
+            const picker = document.getElementById(`colorPicker${index}`);
+            if (!picker) return;
+            
+            const isOpen = picker.classList.contains('show');
+            
+            // Chiudi tutti i picker
+            closeAllPickers();
+            
+            // Se non era aperto, aprilo
+            if (!isOpen) {
+              requestAnimationFrame(() => {
+                // Reset degli stili inline per usare il CSS fixed centrato
+                picker.style.top = '50%';
+                picker.style.left = '50%';
+                picker.style.bottom = 'auto';
+                picker.style.right = 'auto';
+                picker.style.transform = 'translate(-50%, -50%) scale(0.9)';
+                picker.style.opacity = '0';
+                
+                // Mostra overlay prima
+                if (overlay) {
+                  overlay.style.display = 'block';
+                  overlay.style.opacity = '0';
+                  overlay.classList.add('show');
+                  void overlay.offsetHeight;
+                  requestAnimationFrame(() => {
+                    overlay.style.opacity = '1';
+                  });
+                }
+                
+                // Poi mostra il picker
+                picker.style.display = 'flex';
+                picker.classList.add('show');
+                void picker.offsetHeight;
+                
+                // Animazione di apertura
+                requestAnimationFrame(() => {
+                  if (picker.classList.contains('show')) {
+                    picker.style.transform = 'translate(-50%, -50%) scale(1)';
+                    picker.style.opacity = '1';
+                  }
+                });
+              });
+            }
+          };
+          
+          newCircle.addEventListener('click', openPicker);
+          newCircle.addEventListener('touchend', openPicker);
+        });
+      };
+      
+      attachColorCircleListeners();
+
+      // Seleziona un colore (supporto click e touch)
+      const attachColorOptionListeners = () => {
+        document.querySelectorAll('.colorOption').forEach(option => {
+          // Rimuovi eventuali listener precedenti
+          const newOption = option.cloneNode(true);
+          option.parentNode.replaceChild(newOption, option);
+          
+          const selectColor = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const color = newOption.dataset.color;
+            const playerIndex = parseInt(newOption.dataset.playerIndex);
+            const colorName = newOption.dataset.colorName;
+            
+            if (!color || playerIndex === undefined || isNaN(playerIndex)) return;
+            
+            // Aggiorna il cerchio del colore del giocatore
+            const playerColorCircle = document.querySelector(`.playerColor[data-index="${playerIndex}"]`);
+            if (playerColorCircle) {
+              playerColorCircle.style.backgroundColor = color;
+              playerColorCircle.dataset.color = color;
+            }
+            
+            // Aggiorna l'input field con il colore selezionato
+            const input = document.querySelector(`.playerInputField[data-index="${playerIndex}"]`);
+            if (input) {
+              input.dataset.color = color;
+              
+              // Aggiorna il nome se era ancora il nome del colore predefinito
+              const currentValue = input.value.trim();
+              const currentPlaceholder = input.placeholder;
+              
+              // Se il valore corrente corrisponde al placeholder precedente o è vuoto, aggiorna
+              if (currentValue === currentPlaceholder || !currentValue) {
+                input.value = colorName;
+                input.placeholder = colorName;
+              } else {
+                // Aggiorna solo il placeholder
+                input.placeholder = colorName;
+              }
+            }
+            
+            // Aggiorna la selezione nel picker
+            const picker = document.getElementById(`colorPicker${playerIndex}`);
+            if (picker) {
+              picker.querySelectorAll('.colorOption').forEach(opt => {
+                opt.classList.remove('selected');
+                if (opt.dataset.color === color) {
+                  opt.classList.add('selected');
+                }
+              });
+              
+              // Chiudi il picker
+              picker.classList.remove('show');
+              picker.style.display = 'none';
+            }
+            
+            if (overlay) {
+              overlay.classList.remove('show');
+              overlay.style.display = 'none';
+            }
+            
+            // Feedback tattile e audio
+            if(navigator.vibrate) {
+              navigator.vibrate(10);
+            }
+            playColorSelectSound();
+          };
+          
+          newOption.addEventListener('click', selectColor);
+          newOption.addEventListener('touchend', selectColor);
+        });
+      };
+      
+      attachColorOptionListeners();
+    }
+
+    // Carica i colori all'avvio e setup event listeners
+    // Usa DOMContentLoaded per assicurarsi che tutto sia pronto (importante per PWA)
+    const initPage = () => {
+      loadColors().then(() => {
+        // Doppio timeout per assicurarsi che il DOM sia completamente renderizzato
+        setTimeout(() => {
+          setupColorPickers();
+        }, 100);
+      });
+    };
+    
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initPage);
+    } else {
+      // DOM già caricato, ma aspetta un frame per sicurezza
+      setTimeout(initPage, 0);
+    }
+  </script>
+</body>
+</html>

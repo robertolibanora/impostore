@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#000000" />
+  <meta name="description" content="Gioco dell'impostore per i Moderati" />
+  <title>Impostore dei Moderati - Gioco</title>
+  
+  <!-- PWA -->
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='icon.svg') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon-192.png') }}">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Impostore">
+  
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
+  <script src="{{ url_for('static', filename='js/common.js') }}"></script>
+  
+  <script>
+    // Registra il service worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then((registration) => {
+            console.log('Service Worker registrato:', registration);
+          })
+          .catch((error) => {
+            console.log('Service Worker registrazione fallita:', error);
+          });
+      });
+    }
+  </script>
+  <style>
+    /* GAME */
+    #homeBtn {
+      position: absolute;
+      top: calc(env(safe-area-inset-top, 20px) + 8px);
+      right: 24px;
+      font-size: 10px;
+      letter-spacing: 0.35em;
+      color: #888888;
+      font-weight: 500;
+      opacity: 0.7;
+      transition: all 0.25s ease;
+      cursor: pointer;
+      padding: 12px 20px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    #homeBtn:hover {
+      opacity: 1;
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.1);
+      transform: translateY(-1px);
+    }
+
+    #homeBtn:active {
+      opacity: 0.9;
+      transform: translateY(0);
+    }
+
+    .redCard {
+      background: linear-gradient(135deg, #1a0000 0%, #0d0000 100%);
+      border: 1px solid rgba(255, 0, 64, 0.4);
+      padding: 22px 36px;
+      border-radius: 8px;
+      width: 100%;
+      max-width: 220px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      cursor: pointer;
+      font-size: 10px;
+      letter-spacing: 0.4em;
+      color: #ffffff;
+      font-weight: 600;
+      opacity: 0.95;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(255, 0, 64, 0.2), inset 0 1px 0 rgba(255, 0, 64, 0.1);
+    }
+
+    .redCard:active {
+      opacity: 0.9;
+    }
+
+    .card {
+      background: linear-gradient(135deg, #1a1a1a 0%, #151515 100%);
+      border: 1px solid #2a2a2a;
+      padding: 56px 32px;
+      border-radius: 8px;
+      width: 100%;
+      max-width: 300px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      transition: none;
+      min-height: 200px;
+      box-sizing: border-box;
+      cursor: pointer;
+      position: relative;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+      opacity: 0;
+    }
+
+    .card:not(.hidden) {
+      display: flex;
+      opacity: 1;
+    }
+
+    .card:active {
+      opacity: 0.9;
+    }
+
+    .card.disabled {
+      pointer-events: none;
+      opacity: 0.6;
+    }
+
+    #word {
+      font-size: 44px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      color: #ffffff;
+      line-height: 1.3;
+      text-align: center;
+      width: 100%;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 0 24px;
+      max-width: 100%;
+      box-sizing: border-box;
+      white-space: nowrap;
+      transition: none;
+      opacity: 0;
+      text-shadow: 0 2px 10px rgba(255, 255, 255, 0.1);
+    }
+
+    #word:not([style*="display: none"]) {
+      display: flex;
+    }
+
+    .blackCard #word {
+      color: #ff0040;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      white-space: nowrap;
+      font-size: 38px;
+      padding: 0 20px;
+      text-shadow: 0 0 20px rgba(255, 0, 64, 0.3), 0 2px 10px rgba(255, 0, 64, 0.2);
+    }
+
+    @media (max-width: 360px) {
+      #word {
+        font-size: 40px;
+        padding: 0 12px;
+      }
+
+      .blackCard #word {
+        font-size: 36px;
+      }
+    }
+
+    @media (max-width: 320px) {
+      #word {
+        font-size: 36px;
+        padding: 0 8px;
+      }
+
+      .blackCard #word {
+        font-size: 32px;
+      }
+    }
+
+    #playerName {
+      position: absolute;
+      top: calc(env(safe-area-inset-top, 20px) + 80px);
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 14px;
+      letter-spacing: 0.4em;
+      font-weight: 700;
+      opacity: 0;
+      transition: none;
+      text-align: center;
+      z-index: 5;
+      display: none;
+    }
+
+    #playerName:not([style*="display: none"]) {
+      display: block;
+    }
+
+    #sub {
+      position: absolute;
+      top: calc(env(safe-area-inset-top, 20px) + 32px);
+      left: 24px;
+      font-size: 10px;
+      color: #888888;
+      letter-spacing: 0.3em;
+      font-weight: 500;
+      opacity: 0.9;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      transition: opacity 0.3s ease;
+      animation: fadeIn 0.5s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateX(-10px); }
+      to { opacity: 0.85; transform: translateX(0); }
+    }
+
+    #sub .current {
+      color: #ffffff;
+      font-weight: 700;
+      transition: color 0.3s ease;
+      text-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+    }
+
+    #sub .current:after {
+      content: '';
+      display: inline-block;
+      width: 5px;
+      height: 5px;
+      background: #ff0040;
+      border-radius: 50%;
+      margin-left: 8px;
+      animation: blink 1.5s ease-in-out infinite;
+      box-shadow: 0 0 8px rgba(255, 0, 64, 0.5);
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    #sub .total {
+      color: #666666;
+    }
+
+    .confirmDialog {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.97);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 30;
+      gap: 40px;
+      padding: 40px;
+      backdrop-filter: blur(8px);
+      opacity: 0;
+      animation: dialogFadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    }
+
+    @keyframes dialogFadeIn {
+      from {
+        opacity: 0;
+        backdrop-filter: blur(0px);
+      }
+      to {
+        opacity: 1;
+        backdrop-filter: blur(4px);
+      }
+    }
+
+    .confirmDialog.hidden {
+      display: none;
+      opacity: 0;
+    }
+
+    .confirmDialogText {
+      font-size: 13px;
+      letter-spacing: 0.5em;
+      color: #ffffff;
+      font-weight: 600;
+      text-align: center;
+      opacity: 1;
+      animation: textSlideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1) 0.1s both;
+      text-shadow: 0 2px 10px rgba(255, 255, 255, 0.1);
+    }
+
+    @keyframes textSlideUp {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 0.95;
+        transform: translateY(0);
+      }
+    }
+
+    .confirmDialogButtons {
+      display: flex;
+      gap: 24px;
+    }
+
+    .confirmBtn {
+      font-size: 11px;
+      letter-spacing: 0.35em;
+      color: #ffffff;
+      font-weight: 600;
+      padding: 18px 36px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      opacity: 0.8;
+      background: linear-gradient(135deg, rgba(26, 26, 26, 0.8) 0%, rgba(20, 20, 20, 0.8) 100%);
+      animation: buttonSlideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1) 0.2s both;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    }
+
+    @keyframes buttonSlideUp {
+      from {
+        opacity: 0;
+        transform: translateY(15px);
+      }
+      to {
+        opacity: 0.7;
+        transform: translateY(0);
+      }
+    }
+
+    .confirmBtn::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 0;
+      height: 0;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.1);
+      transform: translate(-50%, -50%);
+      transition: width 0.4s ease, height 0.4s ease;
+    }
+
+    .confirmBtn:active::before {
+      width: 200px;
+      height: 200px;
+    }
+
+    .confirmBtn:hover {
+      opacity: 0.9;
+      background: rgba(26, 26, 26, 0.8);
+      transform: translateY(-1px);
+    }
+
+    .confirmBtn:active {
+      opacity: 1;
+      transform: scale(0.96) translateY(0);
+    }
+
+    .confirmBtn:focus-visible {
+      outline: 2px solid rgba(255, 255, 255, 0.5);
+      outline-offset: 2px;
+    }
+
+    .confirmBtn.confirm {
+      border-color: rgba(255, 0, 64, 0.5);
+      opacity: 0.9;
+      background: linear-gradient(135deg, rgba(26, 0, 0, 0.8) 0%, rgba(13, 0, 0, 0.8) 100%);
+    }
+
+    .confirmBtn.confirm:hover {
+      opacity: 1;
+      border-color: rgba(255, 0, 64, 0.7);
+      background: linear-gradient(135deg, rgba(26, 0, 0, 0.95) 0%, rgba(13, 0, 0, 0.95) 100%);
+      box-shadow: 0 0 20px rgba(255, 0, 64, 0.3), 0 4px 15px rgba(0, 0, 0, 0.4);
+    }
+
+    #newRound {
+      position: absolute;
+      bottom: calc(env(safe-area-inset-bottom, 0px) + 36px);
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 10px;
+      letter-spacing: 0.3em;
+      color: #ffffff;
+      font-weight: 500;
+      transition: opacity 0.2s ease;
+      cursor: pointer;
+      opacity: 0.9;
+    }
+
+    #newRound:active {
+      opacity: 1;
+    }
+
+    .blackCard {
+      background: linear-gradient(135deg, #000000 0%, #0a0000 100%);
+      border: 1px solid rgba(255, 0, 64, 0.3);
+      box-shadow: 0 0 30px rgba(255, 0, 64, 0.2), inset 0 0 20px rgba(255, 0, 64, 0.05);
+      animation: redGlow 2s ease-in-out infinite;
+    }
+
+    @keyframes redGlow {
+      0%, 100% {
+        box-shadow: 0 0 30px rgba(255, 0, 64, 0.2), inset 0 0 20px rgba(255, 0, 64, 0.05);
+        border-color: rgba(255, 0, 64, 0.3);
+      }
+      50% {
+        box-shadow: 0 0 40px rgba(255, 0, 64, 0.35), inset 0 0 25px rgba(255, 0, 64, 0.1);
+        border-color: rgba(255, 0, 64, 0.5);
+      }
+    }
+
+    .blackScreen {
+      position: absolute;
+      inset: 0;
+      background: #000000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+      transition: none;
+      opacity: 1;
+    }
+
+    .blackScreen:not(.hidden) {
+      display: flex;
+    }
+
+    .blackScreen.hidden {
+      display: none;
+      opacity: 1;
+    }
+
+    .transitionScreen {
+      position: absolute;
+      inset: 0;
+      background: #000000;
+      z-index: 8;
+      display: none;
+      opacity: 1;
+      transition: none;
+    }
+
+    .transitionScreen.show {
+      display: block;
+    }
+
+    #blackScreenText {
+      font-size: 12px;
+      letter-spacing: 0.35em;
+      color: #666666;
+      font-weight: 500;
+      opacity: 0.7;
+      animation: fadeInOut 1.5s ease-in-out infinite;
+      cursor: pointer;
+    }
+
+    @keyframes fadeInOut {
+      0%, 100% { opacity: 0.7; }
+      50% { opacity: 1; }
+    }
+
+    .passScreen {
+      position: absolute;
+      inset: 0;
+      background: #000000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 15;
+      transition: none;
+      cursor: pointer;
+      opacity: 0;
+    }
+
+    .passScreen:not(.hidden) {
+      display: flex;
+      opacity: 1;
+    }
+
+    .passScreen.hidden {
+      display: none;
+      opacity: 0;
+    }
+
+    #passScreenText {
+      font-size: 13px;
+      letter-spacing: 0.5em;
+      color: #888888;
+      font-weight: 500;
+      opacity: 0.9;
+      animation: pulse 2s ease-in-out infinite;
+      text-align: center;
+      transition: all 0.3s ease;
+      padding: 16px 32px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    #passScreenText.newTurn {
+      color: #ff0040;
+      opacity: 1;
+      font-weight: 700;
+      border-color: rgba(255, 0, 64, 0.3);
+      background: rgba(255, 0, 64, 0.05);
+      text-shadow: 0 0 15px rgba(255, 0, 64, 0.3);
+      animation: pulseRed 2s ease-in-out infinite;
+    }
+
+    @keyframes pulseRed {
+      0%, 100% { 
+        opacity: 1;
+        box-shadow: 0 0 20px rgba(255, 0, 64, 0.2);
+      }
+      50% { 
+        opacity: 0.95;
+        box-shadow: 0 0 30px rgba(255, 0, 64, 0.4);
+      }
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.8; }
+      50% { opacity: 1; }
+    }
+
+    .endRound {
+      position: absolute;
+      inset: 0;
+      background: #000000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 20;
+      gap: 40px;
+      animation: fadeIn 0.5s ease;
+    }
+
+    .endRound.hidden {
+      display: none;
+    }
+
+    #endRoundText {
+      font-size: 16px;
+      letter-spacing: 0.6em;
+      color: #ffffff;
+      font-weight: 600;
+      opacity: 1;
+      text-shadow: 0 2px 15px rgba(255, 255, 255, 0.2);
+    }
+
+    @media (min-width: 768px) {
+      .card {
+        max-width: 320px;
+        padding: 56px 36px;
+        min-height: 200px;
+        border-radius: 8px;
+      }
+
+      #word {
+        font-size: 48px;
+      }
+
+      .redCard {
+        max-width: 240px;
+        padding: 20px 32px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="screen">
+    <div id="homeBtn" onclick="playClickSound(); setTimeout(() => window.location.href='/setup', 150);">HOME</div>
+
+    <div id="playerName" style="display: none; opacity: 0;"></div>
+
+    <div class="card hidden" id="card" style="display: none; opacity: 0;">
+      <div id="word" style="display: none; opacity: 0;">TAP</div>
+    </div>
+
+    <div class="passScreen hidden" id="passScreen">
+      <div id="passScreenText">PASSA IL TELEFONO</div>
+    </div>
+
+    <div id="sub">
+      <div>PLAYER <span class="current">1</span> / <span class="total">6</span></div>
+      <div>TURNO <span class="current">1</span> / <span class="total">78</span></div>
+    </div>
+
+    <div class="redCard" id="newRound">NUOVA PARTITA</div>
+
+    <div class="blackScreen hidden" id="blackScreen">
+      <div id="blackScreenText">CLICCA QUA</div>
+    </div>
+
+    <div class="transitionScreen" id="transitionScreen"></div>
+
+    <div class="endRound hidden" id="endRound">
+      <div id="endRoundText">FINE GIRO</div>
+      <div id="newRoundFromEnd" style="font-size: 10px; letter-spacing: 0.3em; color: #ffffff; opacity: 0.6; font-weight: 500; margin-top: 16px;">NUOVA PARTITA</div>
+    </div>
+
+    <div class="confirmDialog hidden" id="confirmDialog">
+      <div class="confirmDialogText">NUOVA PARTITA?</div>
+      <div class="confirmDialogButtons">
+        <div class="confirmBtn" id="confirmCancel">ANNULLA</div>
+        <div class="confirmBtn confirm" id="confirmOk">CONFERMA</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let players = 6;
+    let word = "";
+    let currentPlayer = 0;
+    let isWaitingForNext = false;
+    let currentWordIndex = 0;
+    let totalWords = 0;
+    let isTransitioning = false;
+    let pendingNewRound = false;
+
+    const card = document.getElementById("card");
+    const wordEl = document.getElementById("word");
+    const playerNameEl = document.getElementById("playerName");
+    const sub = document.getElementById("sub");
+    const passScreen = document.getElementById("passScreen");
+    const blackScreen = document.getElementById("blackScreen");
+    const endRound = document.getElementById("endRound");
+    const confirmDialog = document.getElementById("confirmDialog");
+    const transitionScreen = document.getElementById("transitionScreen");
+
+    // Inizializza audio e avvia il gioco
+    initAudio();
+    playPageTransitionSound();
+    setTimeout(() => {
+      newRound();
+    }, 200);
+
+    async function newRound(){
+      // Chiama l'API per iniziare una nuova partita (resetta lo stato ma mantiene i nomi)
+      try {
+        const response = await fetch('/api/game/start', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+          console.error('Errore:', data.error);
+          if (data.error === 'Giocatori non configurati') {
+            window.location.href = '/setup';
+          }
+          return;
+        }
+        
+        totalWords = data.total_words;
+        currentWordIndex = 0;
+        currentPlayer = 0;
+        isWaitingForNext = false;
+        passScreen.classList.add("hidden");
+        passScreen.style.display = "none";
+        passScreen.style.opacity = "0";
+        blackScreen.classList.add("hidden");
+        endRound.classList.add("hidden");
+        
+        // Nascondi schermo di transizione se presente
+        if (transitionScreen) {
+          transitionScreen.classList.remove("show");
+          transitionScreen.style.display = "none";
+        }
+        
+        showCard();
+      } catch (error) {
+        console.error('Errore nella chiamata API:', error);
+      }
+    }
+
+    function adjustFontSize() {
+      // Reset per misurare correttamente
+      wordEl.style.fontSize = '';
+      wordEl.style.whiteSpace = 'nowrap';
+      
+      // Aspetta che il DOM si aggiorni
+      setTimeout(() => {
+        const cardPadding = 48; // padding left + right
+        const availableWidth = card.offsetWidth - cardPadding;
+        const wordWidth = wordEl.scrollWidth;
+        const baseFontSize = 48;
+        
+        if (wordWidth > availableWidth) {
+          const ratio = availableWidth / wordWidth;
+          const newSize = Math.max(28, baseFontSize * ratio * 0.9);
+          wordEl.style.fontSize = newSize + 'px';
+        } else {
+          wordEl.style.fontSize = '';
+        }
+      }, 50);
+    }
+
+    async function showCard(){
+      // Reset stati
+      isTransitioning = false;
+      isWaitingForNext = false;
+      
+      // MOSTRA SCHERMO NERO IMMEDIATAMENTE per nascondere tutto
+      transitionScreen.classList.add("show");
+      transitionScreen.style.display = "block";
+      transitionScreen.style.opacity = "1";
+      
+      // NASCONDI TUTTO IMMEDIATAMENTE PRIMA DI CHIAMARE L'API
+      // Questo previene che si veda la card precedente
+      card.style.transition = "none";
+      card.style.opacity = "0";
+      card.style.display = "none";
+      card.classList.add("hidden");
+      
+      // Nascondi nome giocatore immediatamente
+      playerNameEl.style.opacity = "0";
+      playerNameEl.style.display = "none";
+      playerNameEl.textContent = "";
+      
+      // Nascondi parola immediatamente
+      wordEl.style.opacity = "0";
+      wordEl.style.display = "none";
+      wordEl.style.transition = "none";
+      wordEl.textContent = "";
+      
+      // Rimuovi tutte le classi che potrebbero causare delay visivo
+      card.classList.remove("blackCard");
+      
+      // Nascondi la pagina di passaggio
+      passScreen.classList.add("hidden");
+      passScreen.style.display = "none";
+      passScreen.style.opacity = "0";
+      blackScreen.classList.add("hidden");
+      const passScreenText = document.getElementById("passScreenText");
+      passScreenText.textContent = "PASSA IL telefono";
+      passScreenText.classList.remove("newTurn");
+      
+      // Forza un reflow per assicurarsi che le modifiche siano applicate
+      void card.offsetHeight;
+      void transitionScreen.offsetHeight;
+      
+      try {
+        // Chiama l'API per ottenere la prossima card
+        const response = await fetch('/api/game/next', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+          console.error('Errore:', data.error);
+          return;
+        }
+        
+        // Aggiorna lo stato locale
+        currentPlayer = data.current_player - 1; // Converti da 1-based a 0-based
+        currentWordIndex = data.current_turn - 1;
+        word = data.word || "";
+        const isImpostor = data.is_impostor;
+        players = data.total_players;
+        
+        // Prepara tutto PRIMA di mostrare
+        // IMPORTANTE: Rimuovi/aggiungi blackCard PRIMA di mostrare la card
+        if(isImpostor){
+          card.classList.add("blackCard");
+          wordEl.textContent = "IMPOSTORE";
+        } else {
+          card.classList.remove("blackCard");
+          wordEl.textContent = word.toUpperCase();
+        }
+        
+        wordEl.style.fontSize = '';
+        wordEl.style.whiteSpace = 'nowrap';
+        
+        // Aggiorna il nome del giocatore (ma non mostrarlo ancora)
+        if (data.player_name) {
+          playerNameEl.textContent = data.player_name.toUpperCase();
+          playerNameEl.style.color = data.player_color || '#ffffff';
+          playerNameEl.style.textShadow = `0 0 15px ${data.player_color || '#ffffff'}40, 0 2px 10px rgba(0, 0, 0, 0.3)`;
+        }
+        
+        // Aggiorna il conteggio
+        sub.innerHTML = `
+          <div>PLAYER <span class="current">${data.current_player}</span> / <span class="total">${data.total_players}</span></div>
+          <div>TURNO <span class="current">${data.current_turn}</span> / <span class="total">${data.total_turns}</span></div>
+        `;
+        
+        // Forza un altro reflow per assicurarsi che le classi siano applicate
+        void card.offsetHeight;
+        
+        // Nascondi lo schermo di transizione PRIMA di mostrare la nuova card
+        transitionScreen.classList.remove("show");
+        transitionScreen.style.display = "none";
+        
+        // Forza reflow per assicurarsi che lo schermo nero sia nascosto
+        void transitionScreen.offsetHeight;
+        
+        // Mostra tutto ISTANTANEAMENTE in un unico frame
+        requestAnimationFrame(() => {
+          // Mostra la card
+          card.style.display = "flex";
+          card.style.transition = "none";
+          card.classList.remove("hidden");
+          card.style.opacity = "1";
+          
+          // Mostra la parola
+          wordEl.style.transition = "none";
+          wordEl.style.display = "flex";
+          wordEl.style.opacity = "1";
+          
+          // Mostra il nome del giocatore
+          playerNameEl.style.display = "block";
+          playerNameEl.style.opacity = "1";
+          
+          // Aggiusta la dimensione del font se necessario (solo per non-impostore)
+          if(!isImpostor) {
+            adjustFontSize();
+          }
+          
+          // Vibrazione e suono - stesso trattamento per tutti i giocatori
+          const playerColor = data.player_color || '#ffffff';
+          
+          if(navigator.vibrate) {
+            if(isImpostor) {
+              navigator.vibrate([30, 20, 30]);
+            } else {
+              navigator.vibrate(10);
+            }
+          }
+          
+          // Suono unico per ogni giocatore basato sul colore
+          playPlayerCardSound(playerColor);
+        });
+      } catch (error) {
+        console.error('Errore nella chiamata API:', error);
+      }
+    }
+
+    card.onclick = (e) => {
+      e.stopPropagation();
+      
+      // MOSTRA SCHERMO NERO per nascondere tutto immediatamente
+      transitionScreen.classList.add("show");
+      transitionScreen.style.display = "block";
+      transitionScreen.style.opacity = "1";
+      
+      // NASCONDI TUTTO IMMEDIATAMENTE - nessuna traccia visiva
+      card.style.transition = "none";
+      card.style.opacity = "0";
+      card.style.display = "none";
+      card.classList.add("hidden");
+      
+      // Nascondi nome giocatore immediatamente
+      playerNameEl.style.opacity = "0";
+      playerNameEl.style.display = "none";
+      playerNameEl.textContent = "";
+      
+      // Nascondi parola immediatamente
+      wordEl.style.opacity = "0";
+      wordEl.style.display = "none";
+      wordEl.style.transition = "none";
+      wordEl.textContent = "";
+      
+      // Rimuovi classe blackCard per evitare che si veda il rosso
+      card.classList.remove("blackCard");
+      
+      // Forza reflow
+      void card.offsetHeight;
+      void transitionScreen.offsetHeight;
+      
+      // Feedback tattile e audio
+      if(navigator.vibrate) {
+        navigator.vibrate(25);
+      }
+      playCardFlipSound();
+      
+      // Controlla se è l'ultimo giocatore usando lo stato locale
+      const isLastPlayer = (currentPlayer + 1) >= players;
+      const passScreenText = document.getElementById("passScreenText");
+      
+      // Imposta il testo e lo stile in base al giocatore
+      if(isLastPlayer){
+        passScreenText.textContent = "NUOVO TURNO";
+        passScreenText.classList.add("newTurn");
+        playNewTurnSound();
+      } else {
+        passScreenText.textContent = "PASSA IL telefono";
+        passScreenText.classList.remove("newTurn");
+      }
+      
+      // Nascondi schermo di transizione e mostra la pagina di passaggio
+      transitionScreen.classList.remove("show");
+      transitionScreen.style.display = "none";
+      
+      // Mostra la pagina di passaggio istantaneamente
+      requestAnimationFrame(() => {
+        passScreen.style.transition = "none";
+        passScreen.style.opacity = "1";
+        passScreen.style.display = "flex";
+        passScreen.classList.remove("hidden");
+      });
+    };
+
+    async function nextPlayer() {
+      try {
+        // Chiama l'API per avanzare al prossimo giocatore/turno
+        const response = await fetch('/api/game/advance', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+          console.error('Errore:', data.error);
+          return;
+        }
+        
+        // Controlla se la partita è finita
+        if (data.game_ended) {
+          endGame();
+          return;
+        }
+        
+        // Aggiorna lo stato locale
+        currentPlayer = data.current_player;
+        currentWordIndex = data.current_word_index;
+        
+        // Mostra la nuova card
+        showCard();
+      } catch (error) {
+        console.error('Errore nella chiamata API:', error);
+      }
+    }
+
+    function endGame() {
+      // Reset stati
+      isWaitingForNext = false;
+      isTransitioning = false;
+      
+      // Nascondi tutto
+      card.classList.add("hidden");
+      passScreen.classList.add("hidden");
+      
+      // Mostra fine partita
+      setTimeout(() => {
+        endRound.classList.remove("hidden");
+        if(navigator.vibrate) {
+          navigator.vibrate([50, 30, 50]);
+        }
+        playEndGameSound();
+      }, 150);
+    }
+
+    passScreen.onclick = async (e) => {
+      e.stopPropagation();
+      
+      // Feedback tattile e audio
+      if(navigator.vibrate) {
+        navigator.vibrate(20);
+      }
+      playSuccessSound();
+      
+      // Nascondi la pagina di passaggio istantaneamente
+      passScreen.style.transition = "none";
+      passScreen.style.opacity = "0";
+      passScreen.style.display = "none";
+      passScreen.classList.add("hidden");
+      
+      // Forza reflow per assicurarsi che sia nascosto
+      void passScreen.offsetHeight;
+      
+      // Passa al prossimo giocatore o turno
+      await nextPlayer();
+    };
+
+    function showConfirmDialog() {
+      if(navigator.vibrate) {
+        navigator.vibrate(40);
+      }
+      playClickSound();
+      confirmDialog.classList.remove("hidden");
+      pendingNewRound = true;
+    }
+
+    function hideConfirmDialog() {
+      if(navigator.vibrate) {
+        navigator.vibrate(10);
+      }
+      playCancelSound();
+      confirmDialog.style.opacity = "0";
+      setTimeout(() => {
+        confirmDialog.classList.add("hidden");
+        confirmDialog.style.opacity = "";
+        pendingNewRound = false;
+      }, 300);
+    }
+
+    function confirmNewRound() {
+      if(navigator.vibrate) {
+        navigator.vibrate([30, 20, 30]);
+      }
+      playConfirmSound();
+      hideConfirmDialog();
+      setTimeout(() => {
+        newRound();
+      }, 300);
+    }
+
+    document.getElementById("newRound").onclick = e => {
+      e.stopPropagation();
+      showConfirmDialog();
+    };
+
+    document.getElementById("newRoundFromEnd").onclick = e => {
+      e.stopPropagation();
+      showConfirmDialog();
+    };
+
+    document.getElementById("confirmOk").onclick = e => {
+      e.stopPropagation();
+      confirmNewRound();
+    };
+
+    document.getElementById("confirmCancel").onclick = e => {
+      e.stopPropagation();
+      hideConfirmDialog();
+    };
+  </script>
+</body>
+</html>

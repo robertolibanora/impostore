@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#000000" />
+  <meta name="description" content="Gioco dell'impostore per i Moderati" />
+  <title>Impostore dei Moderati - Setup</title>
+  
+  <!-- PWA -->
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='icon.svg') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon-192.png') }}">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Impostore">
+  
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
+  <script src="{{ url_for('static', filename='js/common.js') }}"></script>
+  
+  <script>
+    // Registra il service worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then((registration) => {
+            console.log('Service Worker registrato:', registration);
+          })
+          .catch((error) => {
+            console.log('Service Worker registrazione fallita:', error);
+          });
+      });
+    }
+  </script>
+</head>
+<body>
+  <div class="screen">
+    <h1>IMPOSTORE<span class="subtitle">DEI MODERATI</span></h1>
+    
+    <div class="control">
+      <div class="btn" id="pMinus">−</div>
+      <div class="value" id="players">6</div>
+      <div class="btn" id="pPlus">+</div>
+    </div>
+    <div class="label">PLAYERS</div>
+
+    <div class="control">
+      <div class="btn" id="iMinus">−</div>
+      <div class="value" id="impostors">1</div>
+      <div class="btn" id="iPlus">+</div>
+    </div>
+    <div class="label">IMPOSTORS</div>
+
+    <div class="start" id="startBtn">TAP TO START</div>
+  </div>
+
+  <script>
+    let players = 6;
+    let impostors = 1;
+
+    initAudio();
+
+    document.getElementById("pPlus").onclick = e => { 
+      e.stopPropagation(); 
+      if(players<20){
+        players++; 
+        upd();
+        playButtonClickSound();
+      }
+    };
+    document.getElementById("pMinus").onclick = e => { 
+      e.stopPropagation(); 
+      if(players>3){
+        players--; 
+        if(impostors>=players) impostors=players-1; 
+        upd();
+        playButtonClickSound();
+      }
+    };
+    document.getElementById("iPlus").onclick = e => { 
+      e.stopPropagation(); 
+      if(impostors<players-1){
+        impostors++; 
+        upd();
+        playButtonClickSound();
+      }
+    };
+    document.getElementById("iMinus").onclick = e => { 
+      e.stopPropagation(); 
+      if(impostors>1){
+        impostors--; 
+        upd();
+        playButtonClickSound();
+      }
+    };
+
+    function upd(){
+      document.getElementById("players").textContent = players;
+      document.getElementById("impostors").textContent = impostors;
+    }
+
+    document.getElementById("startBtn").onclick = () => {
+      playStartGameSound();
+      setTimeout(() => {
+        // Salva i valori nella sessione e vai alla pagina dei giocatori
+        window.location.href = `/players?players=${players}&impostors=${impostors}`;
+      }, 300);
+    };
+  </script>
+</body>
+</html>

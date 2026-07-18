@@ -389,6 +389,7 @@
     const urlParams = new URLSearchParams(window.location.search);
     const players = parseInt(urlParams.get('players')) || 6;
     const impostors = parseInt(urlParams.get('impostors')) || 1;
+    const mode = urlParams.get('mode') || 'impostore';
     let playerColors = [];
     let hasSubmitted = false;
     
@@ -531,9 +532,11 @@
             body: JSON.stringify({
               players: players,
               impostors: impostors,
+              mode: mode,
               player_names: playerNames
             })
           });
+
           
           const data = await response.json();
           

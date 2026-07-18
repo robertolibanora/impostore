@@ -112,6 +112,65 @@
       opacity: 0;
     }
 
+    .card.amnesiaCard {
+      max-width: 340px;
+      min-height: auto;
+      padding: 28px 20px;
+      align-items: stretch;
+      justify-content: flex-start;
+    }
+
+    #otherWords {
+      display: none;
+      flex-direction: column;
+      gap: 14px;
+      width: 100%;
+      max-height: min(52vh, 420px);
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      text-align: left;
+    }
+
+    #otherWords:not([style*="display: none"]) {
+      display: flex;
+    }
+
+    .otherWordRow {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding: 10px 12px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .otherWordName {
+      font-size: 10px;
+      letter-spacing: 0.3em;
+      font-weight: 700;
+      opacity: 0.95;
+    }
+
+    .otherWordText {
+      font-size: 18px;
+      letter-spacing: 0.06em;
+      font-weight: 600;
+      color: #ffffff;
+      line-height: 1.25;
+      text-transform: uppercase;
+      word-break: break-word;
+    }
+
+    #otherWords::-webkit-scrollbar {
+      width: 3px;
+    }
+
+    #otherWords::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 2px;
+    }
+
     .card:not(.hidden) {
       display: flex;
       opacity: 1;
@@ -588,6 +647,7 @@
 
     <div class="card hidden" id="card" style="display: none; opacity: 0;">
       <div id="word" style="display: none; opacity: 0;">TAP</div>
+      <div id="otherWords" style="display: none;"></div>
     </div>
 
     <div class="passScreen hidden" id="passScreen">
@@ -630,9 +690,11 @@
     let totalWords = 0;
     let isTransitioning = false;
     let pendingNewRound = false;
+    let gameMode = 'impostore';
 
     const card = document.getElementById("card");
     const wordEl = document.getElementById("word");
+    const otherWordsEl = document.getElementById("otherWords");
     const playerNameEl = document.getElementById("playerName");
     const sub = document.getElementById("sub");
     const passScreen = document.getElementById("passScreen");
@@ -669,6 +731,7 @@
         }
         
         totalWords = data.total_words;
+        gameMode = data.mode || 'impostore';
         currentWordIndex = 0;
         currentPlayer = 0;
         isWaitingForNext = false;
@@ -739,9 +802,12 @@
       wordEl.style.display = "none";
       wordEl.style.transition = "none";
       wordEl.textContent = "";
+      otherWordsEl.style.display = "none";
+      otherWordsEl.innerHTML = "";
       
       // Rimuovi tutte le classi che potrebbero causare delay visivo
       card.classList.remove("blackCard");
+      card.classList.remove("amnesiaCard");
       
       // Nascondi la pagina di passaggio
       passScreen.classList.add("hidden");
@@ -777,15 +843,43 @@
         currentWordIndex = data.current_turn - 1;
         word = data.word || "";
         const isImpostor = data.is_impostor;
+        const isAmnesia = data.mode === 'amnesia';
+        gameMode = data.mode || gameMode;
         players = data.total_players;
         
         // Prepara tutto PRIMA di mostrare
-        // IMPORTANTE: Rimuovi/aggiungi blackCard PRIMA di mostrare la card
-        if(isImpostor){
+        if (isAmnesia) {
+          card.classList.remove("blackCard");
+          card.classList.add("amnesiaCard");
+          wordEl.textContent = "";
+          wordEl.style.display = "none";
+          otherWordsEl.innerHTML = "";
+          (data.other_words || []).forEach(item => {
+            const row = document.createElement('div');
+            row.className = 'otherWordRow';
+
+            const nameEl = document.createElement('div');
+            nameEl.className = 'otherWordName';
+            const color = item.color || '#ffffff';
+            nameEl.style.color = color;
+            nameEl.style.textShadow = `0 0 12px ${color}40`;
+            nameEl.textContent = (item.name || '').toUpperCase();
+
+            const wordRowEl = document.createElement('div');
+            wordRowEl.className = 'otherWordText';
+            wordRowEl.textContent = (item.word || '').toUpperCase();
+
+            row.appendChild(nameEl);
+            row.appendChild(wordRowEl);
+            otherWordsEl.appendChild(row);
+          });
+        } else if (isImpostor) {
           card.classList.add("blackCard");
+          card.classList.remove("amnesiaCard");
           wordEl.textContent = "IMPOSTORE";
         } else {
           card.classList.remove("blackCard");
+          card.classList.remove("amnesiaCard");
           wordEl.textContent = word.toUpperCase();
         }
         
@@ -823,17 +917,24 @@
           card.classList.remove("hidden");
           card.style.opacity = "1";
           
-          // Mostra la parola
-          wordEl.style.transition = "none";
-          wordEl.style.display = "flex";
-          wordEl.style.opacity = "1";
+          if (isAmnesia) {
+            otherWordsEl.style.display = "flex";
+            wordEl.style.display = "none";
+            wordEl.style.opacity = "0";
+          } else {
+            // Mostra la parola
+            wordEl.style.transition = "none";
+            wordEl.style.display = "flex";
+            wordEl.style.opacity = "1";
+            otherWordsEl.style.display = "none";
+          }
           
           // Mostra il nome del giocatore
           playerNameEl.style.display = "block";
           playerNameEl.style.opacity = "1";
           
           // Aggiusta la dimensione del font se necessario (solo per non-impostore)
-          if(!isImpostor) {
+          if(!isImpostor && !isAmnesia) {
             adjustFontSize();
           }
           
@@ -880,9 +981,12 @@
       wordEl.style.display = "none";
       wordEl.style.transition = "none";
       wordEl.textContent = "";
+      otherWordsEl.style.display = "none";
+      otherWordsEl.innerHTML = "";
       
-      // Rimuovi classe blackCard per evitare che si veda il rosso
+      // Rimuovi classi card per evitare leak visivi
       card.classList.remove("blackCard");
+      card.classList.remove("amnesiaCard");
       
       // Forza reflow
       void card.offsetHeight;

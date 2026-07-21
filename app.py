@@ -17,23 +17,23 @@ def log_every_request():
 
 
 WORDS = [
-    "Davide Doati", "Zangi", "Salama", "Trans", "Tette",
-    "Pitbull", "Malibu", "Belvedere", "Pennacchio", "Silvestro",
+    "Davide Doati", "Zangi", "Salama", "Trans", "Tette","PregnoFamily",
+    "Pitbull", "Malibu", "Belvedere", "Pennacchio", "Silvestro","Seia","Cisina",
     "Samu27", "Luca Bertaglia", "Mario Sindaco", "Guolo", "Presidente",
     "Duce", "Predappio", "Moet Ice", "Peroni", "Berlusconi", "Noi Moderati",
     "Croox", "Gintoneria", "Davide Malibu", "Riviera", "Roma", "Maicol Zainaghi",
-    "Mustang", "Eddy Boscolo", "Sarto SRL", "AlvaInox", "PartyClub",
-    "Tanaka", "SalaVLT", "Poveri", "DonPerignon", "Emma Siviero", "Pizza",
+    "Mustang", "Eddy Boscolo", "Sarto SRL", "AlvaInox", "PartyClub","Marco Bergo",
+    "Tanaka", "SalaVLT", "Poveri", "DonPerignon", "Emma Siviero", "Pizza","Jaws",
     "Silvestro", "Smigol", "Senatore", "GinMare", "Negro", "Porcodio", "Skizzo Prando",
-    "Carabinieri", "Babbo Natale", "Bar Da Vito", "Mercedes", "Wolkswagen Polo",
+    "Carabinieri", "Babbo Natale", "Bar Da Vito", "Mercedes", "Wolkswagen Polo","Santinato"
     "Porsce", "BMW", "Punto Nera", "Giulietta", "Alberto Vittorio", "Frocio", "Savoia",
     "Agente Segreto", "Mago", "Walkie-Talkie", "Roberto Weber", "Cicciona", "Bea",
     "Lanza", "Banana", "Pomodoro", "Cannone", "Bamba", "GS Club", "CatWoman", "3%",
     "Gratta & Vinci", "Valeria Mantovan", "Adria", "Bottiglietta D'Acqua", "Don Nicola",
     "Martina Libanora", "Dry", "Figa di Legno", "Berto Peloso", "Napoli", "Marocchino", "Cinese di Vespucci",
     "Escort Advisor", "Privé", "Console", "Consulente Finanziario", "Re di Roma", "SpringBreak",
-    "LucaBig", "RAM", "Bello Figo", "Cazzetto", "Merda", "Gesù", "Pelato", "Orgia", "Sborra", "Incinta",
-    "Tommaso Soncin", "Isreale", "Adolfo Hitler", "I BINATI", "Maicol Minchia", "Pamela Tettona"
+    "LucaBig", "RAM", "Bello Figo", "Cazzetto", "Merda", "Gesù", "Pelato", "Orgia", "Sborra", "Incinta","moschea"
+    "Tommaso Soncin", "Isreale", "Adolfo Hitler", "I BINATI", "Maicol Minchia", "Pamela Tettona" "avanzo"
 ]
 
 # Colori predefiniti per i giocatori
